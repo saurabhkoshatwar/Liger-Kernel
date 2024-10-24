@@ -14,13 +14,13 @@ class TorchTVDLoss(torch.nn.Module):
         tvd = torch.sum(torch.abs(p - q), dim=-1) / 2.0
         
         if self.reduction == 'mean':
-            return torch.mean(tvd)
+            return torch.sum(tvd) /(p.size(0) * p.size(1))
         elif self.reduction == 'sum':
             return torch.sum(tvd)
         elif self.reduction == 'none':
             return tvd
         elif self.reduction == 'batchmean':
-            return torch.mean(tvd) / p.size(0) 
+            return torch.sum(tvd) / p.size(0) 
         else:
             raise ValueError("Invalid reduction type.")
 
