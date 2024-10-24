@@ -4,6 +4,13 @@ import pytest
 import torch
 from liger_kernel.transformers.tvd import LigerTVDLoss
 
+class TorchTVDLoss(torch.nn.Module):
+    def __init__(self):
+        super(TorchTVDLoss, self).__init__()
+
+    def forward(self, pred, target):
+        return 0.5 * torch.sum(torch.abs(pred - target), dim=-1)
+    
 _SHAPE_PARAMS = (
     "B, T, V",
     [
@@ -40,8 +47,6 @@ _DTYPE_PARAMS = (
     ],
 )
 
-def reference_tvd_loss(pred, target):
-    return 0.5 * (pred - target).abs().sum(dim=-1).mean() 
 
 def _test_tvd_correctness_once(
     target_tvd,
@@ -65,8 +70,9 @@ def _test_tvd_correctness_once(
 
     with torch.no_grad():
         target = torch.randn(B * T, V, device=device).softmax(dim=-1)
-
-    output = reference_tvd_loss(x1, target)
+    
+    torch_tvd_loss = TorchTVDLoss()
+    output = torch_tvd_loss(x1, target)
     output2 = target_tvd(x2, target)
     assert_verbose_allclose(output, output2, atol=atol, rtol=rtol)
 
