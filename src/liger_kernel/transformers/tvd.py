@@ -6,4 +6,4 @@ class LigerTVDLoss(nn.Module):
         super(LigerTVDLoss, self).__init__(*args, **kwargs)
 
     def forward(self, p, q):
-        return LigerTVDLossFunction.apply(p, q)
+        return LigerTVDLossFunction.apply(p, q, self.reduction)

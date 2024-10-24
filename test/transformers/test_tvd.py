@@ -1,16 +1,30 @@
-from test.utils import assert_verbose_allclose, supports_bfloat16
+from test.utils import supports_bfloat16
 
 import pytest
 import torch
-from liger_kernel.transformers.tvd import LigerTVDLoss
+from liger_kernel.transformers.tvd import LigerTVDLoss  
 
 class TorchTVDLoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, reduction='batchmean'):
         super(TorchTVDLoss, self).__init__()
+        self.reduction = reduction
 
-    def forward(self, pred, target):
-        return 0.5 * torch.sum(torch.abs(pred - target), dim=-1)
-    
+    def forward(self, p, q):
+
+        tvd = torch.sum(torch.abs(p - q), dim=-1) / 2.0
+        
+        if self.reduction == 'mean':
+            return torch.mean(tvd)
+        elif self.reduction == 'sum':
+            return torch.sum(tvd)
+        elif self.reduction == 'none':
+            return tvd
+        elif self.reduction == 'batchmean':
+            return torch.mean(tvd) / p.size(0) 
+        else:
+            raise ValueError("Invalid reduction type.")
+
+
 _SHAPE_PARAMS = (
     "B, T, V",
     [
@@ -47,64 +61,69 @@ _DTYPE_PARAMS = (
     ],
 )
 
-
-def _test_tvd_correctness_once(
+def _test_correctness_once(
     target_tvd,
+    torch_tvd,
     B,
     T,
     V,
     dtype,
     atol,
     rtol,
+    reduction,
     is_last_layer=True,
     device="cuda",
 ):
     torch.manual_seed(0)
-
-    input = torch.randn(
-        B * T, V, device=device, dtype=dtype, requires_grad=True
-    ).softmax(dim=-1)
+    input = torch.randn(B * T, V, device=device, dtype=dtype, requires_grad=True)
 
     x1 = input.detach().clone().requires_grad_(True)
     x2 = input.detach().clone().requires_grad_(True)
 
     with torch.no_grad():
         target = torch.randn(B * T, V, device=device).softmax(dim=-1)
-    
-    torch_tvd_loss = TorchTVDLoss()
-    output = torch_tvd_loss(x1, target)
-    output2 = target_tvd(x2, target)
-    assert_verbose_allclose(output, output2, atol=atol, rtol=rtol)
 
-    if (
-        not is_last_layer
-    ):  # if the loss is the last layer, grad_output is 1.0 and mul op is skipped, testing for that reason
+    output = target_tvd(x1, target)
+    output2 = torch_tvd(x2, target)
+    
+    assert torch.allclose(output, output2, atol=atol, rtol=rtol)
+
+    if not is_last_layer:
         output = output * 2.0
         output2 = output2 * 2.0
 
+    if reduction == "none":
+        return
+
     output.backward()
     output2.backward()
-    assert_verbose_allclose(x1.grad, x2.grad, atol=atol, rtol=rtol)
-
-
-@pytest.mark.parametrize(*_SHAPE_PARAMS)
-@pytest.mark.parametrize(*_DTYPE_PARAMS)
-def test_tvd_correctness(B, T, V, dtype, atol, rtol):
-    liger_tvd = LigerTVDLoss()
-    _test_tvd_correctness_once(liger_tvd, B, T, V, dtype, atol, rtol)
-
+    assert torch.allclose(x1.grad, x2.grad, atol=atol, rtol=rtol)
 
 @pytest.mark.parametrize(*_SHAPE_PARAMS)
+@pytest.mark.parametrize("reduction", ["batchmean", "sum", "mean", "none"])
 @pytest.mark.parametrize(*_DTYPE_PARAMS)
-def test_tvd_correctness_not_last(B, T, V, dtype, atol, rtol):
-    liger_tvd = LigerTVDLoss()
-    _test_tvd_correctness_once(
+def test_correctness(B, T, V, reduction, dtype, atol, rtol):
+    liger_tvd = LigerTVDLoss(reduction=reduction)
+    torch_tvd = TorchTVDLoss(reduction=reduction)
+    _test_correctness_once(
+        liger_tvd, torch_tvd, B, T, V, dtype, atol, rtol, reduction
+    )
+
+@pytest.mark.parametrize(*_SHAPE_PARAMS)
+@pytest.mark.parametrize("reduction", ["batchmean", "sum", "mean", "none"])
+@pytest.mark.parametrize(*_DTYPE_PARAMS)
+def test_correctness_not_last(B, T, V, reduction, dtype, atol, rtol):
+    liger_tvd = LigerTVDLoss(reduction=reduction)
+    torch_tvd = TorchTVDLoss(reduction=reduction)
+    _test_correctness_once(
         liger_tvd,
+        torch_tvd,
         B,
         T,
         V,
         dtype,
         atol,
         rtol,
+        reduction,
         is_last_layer=False,
     )
