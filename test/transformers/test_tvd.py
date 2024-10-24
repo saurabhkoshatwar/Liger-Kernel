@@ -11,7 +11,7 @@ class TorchTVDLoss(torch.nn.Module):
 
     def forward(self, p, q):
 
-        tvd = torch.sum(torch.abs(p - q), dim=-1) / 2.0
+        tvd = torch.abs(p - q) / 2.0
         
         if self.reduction == 'mean':
             return torch.sum(tvd) /(p.size(0) * p.size(1))

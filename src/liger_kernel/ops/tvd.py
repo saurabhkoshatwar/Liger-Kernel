@@ -199,4 +199,4 @@ class LigerTVDLossFunction(torch.autograd.Function):
         elif ctx.reduction == "mean":
             new_grads_p /= (BT * V)
 
-        return new_grads_p, None
+        return new_grads_p, None, None
