@@ -138,7 +138,7 @@ def tv_distance_forward_triton(p, q, reduction):
         return output_tensor, new_grads_p
 
 def tvd_backward_triton(grad_output, new_grads):
-    
+
     # If cross entropy is the last layer, grad_output is 1.0. Skip the mul then.
     if torch.equal(grad_output, torch.tensor(1.0, device=grad_output.device)):
         return new_grads
@@ -183,7 +183,7 @@ class LigerTVDLossFunction(torch.autograd.Function):
         Returns:
             tuple[torch.Tensor, None, None]: The gradient of the loss with respect to the inputs.
         """
-        new_grads_p = ctx.saved_tensors
+        new_grads_p, = ctx.saved_tensors
         BT, V = new_grads_p.shape
 
         new_grads_p = tvd_backward_triton(grad_output, new_grads_p)
