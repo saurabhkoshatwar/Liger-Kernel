@@ -85,10 +85,10 @@ def _tvd_kernel_backward(p_ptr, p_stride, q_ptr, q_stride, new_grads_ptr, new_gr
         offsets = i + tl.arange(0, BLOCK_SIZE)
         mask = offsets < n_cols
 
-        p = tl.load(p_ptr + offsets, mask=mask, other=0.0)  # Load P
-        q = tl.load(q_ptr + offsets, mask=mask, other=0.0)  # Load Q
+        p = tl.load(p_ptr + offsets, mask=mask, other=0.0)  
+        q = tl.load(q_ptr + offsets, mask=mask, other=0.0)  
 
-        grad_res = tl.where(p > q, 0.5, -0.5)  # 0.5 if P > Q, -0.5 if P < Q
+        grad_res = tl.where(p > q, 0.5, -0.5)  
 
         tl.store(new_grads_ptr + offsets, grad_res, mask=mask)
 
@@ -185,7 +185,7 @@ class LigerTVDLossFunction(torch.autograd.Function):
             grad_output (torch.Tensor): The gradient of the loss with respect to the output.
 
         Returns:
-            tuple[torch.Tensor, None]: The gradient of the loss with respect to the inputs.
+            tuple[torch.Tensor, None, None]: The gradient of the loss with respect to the inputs.
         """
         p, q = ctx.saved_tensors
         BT, V = p.shape
