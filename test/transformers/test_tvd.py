@@ -7,22 +7,26 @@ from liger_kernel.transformers.tvd import LigerTVDLoss
 
 
 class TorchTVDLoss(torch.nn.Module):
-    def __init__(self, reduction="batchmean"):
+    def __init__(self, reduction="batchmean", ignore_index: int = -100):
         super(TorchTVDLoss, self).__init__()
         self.reduction = reduction
+        self.ignore_index = ignore_index
 
-    def forward(self, p, q):
+    def forward(self, p, q, label = 
+                None):
 
         tvd = torch.abs(p - q) / 2.0
-
+        if label is not None:
+            tvd = torch.where(label != self.ignore_index, tvd, 0.0)
+        n_non_ignore = (label != self.ignore_index).sum().item() if label else p.size(0)
         if self.reduction == "mean":
-            return torch.sum(tvd) / (p.size(0) * p.size(1))
+            return torch.sum(tvd) / (n_non_ignore * p.size(1))
         elif self.reduction == "sum":
             return torch.sum(tvd)
         elif self.reduction == "none":
             return tvd
         elif self.reduction == "batchmean":
-            return torch.sum(tvd) / p.size(0)
+            return torch.sum(tvd) / n_non_ignore
         else:
             raise ValueError("Invalid reduction type.")
 
@@ -97,6 +101,41 @@ def _test_correctness_once(
 
     if reduction == "none":
         return
+
+    output.backward()
+    output2.backward()
+    assert torch.allclose(x1.grad, x2.grad, atol=atol, rtol=rtol)
+
+def _test_correctness_with_ignore_index_once(
+    target_tvd, 
+    torch_tvd, 
+    ignore_index, 
+    B, 
+    T, 
+    V, 
+    dtype, 
+    atol, 
+    rtol, 
+    device="cuda"
+):
+    input = torch.randn(B * T, V, device=device, dtype=dtype, requires_grad=True)
+
+    x1 = input.detach().clone().requires_grad_(True)
+    x2 = input.detach().clone().requires_grad_(True)
+
+    with torch.no_grad():
+        target = torch.randn(B * T, V, dtype=dtype, device=device).softmax(dim=-1)
+
+    label = torch.randint(0, V, (B * T,), device=device, dtype=torch.long)
+
+    num_elements_to_assign = torch.randint(1, B * T // 2, (1,)).item()
+    indices_to_assign = torch.randperm(B * T)[:num_elements_to_assign]
+    label[indices_to_assign] = ignore_index
+
+    output = torch_tvd(x1, target, label)
+    output2 = target_tvd(x2, target, label)
+
+    assert torch.allclose(output, output2, atol=atol, rtol=rtol)
 
     output.backward()
     output2.backward()
