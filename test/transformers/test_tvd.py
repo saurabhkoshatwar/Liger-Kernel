@@ -1,4 +1,4 @@
-from test.utils import supports_bfloat16
+from test.utils import assert_verbose_allclose, set_seed, supports_bfloat16
 
 import pytest
 import torch
@@ -169,3 +169,12 @@ def test_correctness_not_last(B, T, V, reduction, dtype, atol, rtol):
         reduction,
         is_last_layer=False,
     )
+
+@pytest.mark.parametrize(*_SHAPE_PARAMS)
+@pytest.mark.parametrize("reduction", ["batchmean", "sum", "mean", "none"])
+@pytest.mark.parametrize(*_DTYPE_PARAMS)
+@pytest.mark.parametrize("ignore_index", [-100, 0, 1])
+def test_correctness_with_ignore_index(B, T, V, reduction, dtype, atol, rtol, ignore_index):
+    liger_tvd = LigerTVDLoss(reduction=reduction, ignore_index=ignore_index)
+    torch_tvd = TorchTVDLoss(reduction=reduction, ignore_index=ignore_index)
+    _test_correctness_with_ignore_index_once(liger_tvd, torch_tvd, ignore_index, B, T, V, dtype, atol, rtol)
