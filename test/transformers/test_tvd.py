@@ -16,9 +16,15 @@ class TorchTVDLoss(torch.nn.Module):
                 None):
 
         tvd = torch.abs(p - q) / 2.0
+        n_non_ignore = p.size(0)
         if label is not None:
-            tvd = torch.where(label != self.ignore_index, tvd, 0.0)
-        n_non_ignore = (label != self.ignore_index).sum().item() if label else p.size(0)
+            label = label.unsqueeze(1)  
+            mask = (label != self.ignore_index).float()  
+            tvd = tvd * mask 
+            n_non_ignore = mask.sum().item()
+            if n_non_ignore == 0:
+                return torch.tensor(0.0).to(tvd.device)
+
         if self.reduction == "mean":
             return torch.sum(tvd) / (n_non_ignore * p.size(1))
         elif self.reduction == "sum":
