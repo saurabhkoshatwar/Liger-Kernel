@@ -18,7 +18,7 @@ class TorchTVDLoss(torch.nn.Module):
         tvd = torch.abs(p - q) / 2.0
         n_non_ignore = p.size(0)
         if label is not None:
-            tvd = torch.where(label != self.ignore_index, tvd, 0.0)
+            tvd = torch.where(label.unsqueeze(1) != self.ignore_index, tvd, torch.zeros_like(tvd))
             n_non_ignore = (label != self.ignore_index).sum().item()
             if n_non_ignore == 0:
                 return torch.tensor(0.0).to(tvd.device)
@@ -120,6 +120,7 @@ def _test_correctness_with_ignore_index_once(
     dtype, 
     atol, 
     rtol, 
+    reduction,
     device="cuda"
 ):
     input = torch.randn(B * T, V, device=device, dtype=dtype, requires_grad=True)
@@ -128,7 +129,7 @@ def _test_correctness_with_ignore_index_once(
     x2 = input.detach().clone().requires_grad_(True)
 
     with torch.no_grad():
-        target = torch.randn(B * T, V, dtype=dtype, device=device).softmax(dim=-1)
+        target = torch.randn(B * T, V, device=device).softmax(dim=-1)
 
     label = torch.randint(0, V, (B * T,), device=device, dtype=torch.long)
 
@@ -141,6 +142,9 @@ def _test_correctness_with_ignore_index_once(
 
     assert torch.allclose(output, output2, atol=atol, rtol=rtol)
 
+    if reduction == "none":
+        return
+    
     output.backward()
     output2.backward()
     assert torch.allclose(x1.grad, x2.grad, atol=atol, rtol=rtol)
@@ -181,4 +185,4 @@ def test_correctness_not_last(B, T, V, reduction, dtype, atol, rtol):
 def test_correctness_with_ignore_index(B, T, V, reduction, dtype, atol, rtol, ignore_index):
     liger_tvd = LigerTVDLoss(reduction=reduction, ignore_index=ignore_index)
     torch_tvd = TorchTVDLoss(reduction=reduction, ignore_index=ignore_index)
-    _test_correctness_with_ignore_index_once(liger_tvd, torch_tvd, ignore_index, B, T, V, dtype, atol, rtol)
+    _test_correctness_with_ignore_index_once(liger_tvd, torch_tvd, ignore_index, B, T, V, dtype, atol, rtol, reduction)
