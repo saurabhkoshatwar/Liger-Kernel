@@ -763,7 +763,7 @@ def apply_liger_kernel_to_deepseek_v2(
 
     import sys
 
-    # Ensure the model is a DeepSeek model and v2 mode is enabled
+    # Ensure the model is a DeepSeek model 
     if 'deepseek' not in model.__class__.__module__:
         raise ValueError("The provided model is not a DeepSeek model")
 
