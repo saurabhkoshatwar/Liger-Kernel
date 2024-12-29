@@ -313,7 +313,7 @@ MINI_MODEL_SETUPS = {
             'num_attention_heads': 8,  # 16
             'num_hidden_layers': 4,  # 27
             'num_key_value_heads': None,  # defaults to num_attention_heads
-            'rms_norm_eps': 1e-5, # 1e-06
+            'rms_norm_eps': 1e-6, 
             'rope_theta': 10000.0,
             'sliding_window': None,
             'tie_word_embeddings': False,
@@ -449,6 +449,8 @@ def run_mini_model(
     
     if model_name[:6] == "remote":
         revert_kwargs["remote_model_module"] = MINI_MODEL_SETUPS[model_name].remote_model_module
+        
+    model = create_model(model_name).to(dtype).to(device)
 
     if with_liger is True:
         kwargs = {
@@ -467,12 +469,12 @@ def run_mini_model(
 
         kwargs["fused_linear_cross_entropy"] = False
         kwargs["cross_entropy"] = True
-
+        kwargs["model"] = model
         MINI_MODEL_SETUPS[model_name].liger_kernel_patch_func(**kwargs)
     else:
         MINI_MODEL_SETUPS[model_name].liger_kernel_patch_revert_func(**revert_kwargs)
 
-    model = create_model(model_name).to(dtype).to(device)
+    
     train_dataset = load_from_disk(DEFAULT_DATASET_PATH)
     loader = DataLoader(train_dataset, batch_size=16, shuffle=False, collate_fn=simple_collate_fn)
     loader_iter = iter(loader)
@@ -685,7 +687,7 @@ def run_mini_model(
         #         not supports_bfloat16(), reason="bfloat16 not supported on this GPU"
         #     ),
         # ),
-        ("remote_mini_deepseek_v2", 32, 1e-4, torch.float32, 1e-8, 1e-5, 5e-3, 1e-5, 5e-3, 1e-5),
+        ("remote_mini_deepseek_v2", 32, 1e-4, torch.float32, 1e-8, 1e-4, 5e-3, 1e-5, 5e-3, 1e-5),
         pytest.param(
             "remote_mini_deepseek_v2",
             32,

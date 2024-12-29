@@ -136,10 +136,10 @@ class MiniModelConfig:
 @dataclass
 class RemoteMiniModelConfig:
     remote_model_path : str
-    remote_model_module : str = None
     liger_kernel_patch_func: callable
     liger_kernel_patch_revert_func: callable
     mini_model_config: Dict
+    remote_model_module : str = None
 
 
 def simple_collate_fn(data: List[Dict[str, Any]]):

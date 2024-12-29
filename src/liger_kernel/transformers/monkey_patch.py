@@ -769,11 +769,15 @@ def apply_liger_kernel_to_deepseek_v2(
 
     modeling_mod = sys.modules[model.__class__.__module__]
 
+    LigerRMSNormForDeepseekV2 = partial(LigerRMSNorm, casting_mode="gemma")
+    _patch_rms_norm_module_for_deepseek_v2 = partial(_patch_rms_norm_module, casting_mode="gemma")
+
+
     if rope:
         pass
         # modeling_mod.apply_rotary_pos_emb = liger_rotary_pos_emb
     if rms_norm:
-        modeling_mod.DeepseekRMSNormV2 = LigerRMSNorm  
+        modeling_mod.DeepseekRMSNormV2 = LigerRMSNormForDeepseekV2  
     if swiglu:
         modeling_mod.DeepseekV2MLP.forward = LigerSwiGLUMLP.forward
     if cross_entropy:
@@ -796,14 +800,14 @@ def apply_liger_kernel_to_deepseek_v2(
         base_model = getattr(model, model.base_model_prefix, model)
 
         if rms_norm:
-            _patch_rms_norm_module(base_model.norm)
+            _patch_rms_norm_module_for_deepseek_v2(base_model.norm)
 
         for decoder_layer in base_model.layers:
             if swiglu:
                 _bind_method_to_module(decoder_layer.mlp, "forward", LigerSwiGLUMLP.forward)
             if rms_norm:
-                _patch_rms_norm_module(decoder_layer.input_layernorm)
-                _patch_rms_norm_module(decoder_layer.post_attention_layernorm)
+                _patch_rms_norm_module_for_deepseek_v2(decoder_layer.input_layernorm)
+                _patch_rms_norm_module_for_deepseek_v2(decoder_layer.post_attention_layernorm)
 
 # Model type corresponds to the keys defined in transformers/models/auto/modeling_auto.py
 MODEL_TYPE_TO_APPLY_LIGER_FN = {
