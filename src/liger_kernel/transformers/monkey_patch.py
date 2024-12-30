@@ -777,7 +777,7 @@ def apply_liger_kernel_to_deepseek_v2(
         pass
         # modeling_mod.apply_rotary_pos_emb = liger_rotary_pos_emb
     if rms_norm:
-        modeling_mod.DeepseekRMSNormV2 = LigerRMSNormForDeepseekV2  
+        modeling_mod.DeepseekV2RMSNorm = LigerRMSNormForDeepseekV2  
     if swiglu:
         modeling_mod.DeepseekV2MLP.forward = LigerSwiGLUMLP.forward
     if cross_entropy:
@@ -804,7 +804,11 @@ def apply_liger_kernel_to_deepseek_v2(
 
         for decoder_layer in base_model.layers:
             if swiglu:
-                _bind_method_to_module(decoder_layer.mlp, "forward", LigerSwiGLUMLP.forward)
+                if isinstance(decoder_layer.mlp, modeling_mod.DeepseekV2MLP):
+                    _bind_method_to_module(decoder_layer.mlp, "forward", LigerSwiGLUMLP.forward)
+                if isinstance(decoder_layer.mlp, modeling_mod.DeepseekV2MoE):
+                    for expert in decoder_layer.mlp.experts:
+                        _bind_method_to_module(expert, "forward", LigerSwiGLUMLP.forward)
             if rms_norm:
                 _patch_rms_norm_module_for_deepseek_v2(decoder_layer.input_layernorm)
                 _patch_rms_norm_module_for_deepseek_v2(decoder_layer.post_attention_layernorm)
