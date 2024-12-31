@@ -43,7 +43,7 @@ from test.utils import revert_liger_kernel_to_mllama
 from test.utils import revert_liger_kernel_to_phi3
 from test.utils import revert_liger_kernel_to_qwen2
 from test.utils import revert_liger_kernel_to_qwen2_vl
-from test.utils import revert_remote_model
+from test.utils import revert_liger_kernel_to_deepseek_v2
 from test.utils import set_seed
 from test.utils import simple_collate_fn
 from test.utils import supports_bfloat16
@@ -300,7 +300,7 @@ MINI_MODEL_SETUPS = {
     "remote_mini_deepseek_v2": RemoteMiniModelConfig(
         remote_model_path="deepseek-ai/DeepSeek-Coder-V2-Lite-Base",
         liger_kernel_patch_func=apply_liger_kernel_to_deepseek_v2,
-        liger_kernel_patch_revert_func=revert_remote_model,
+        liger_kernel_patch_revert_func=revert_liger_kernel_to_deepseek_v2,
         mini_model_config={
             'attention_dropout': 0.0,
             'bos_token_id': 1,  # 100000    

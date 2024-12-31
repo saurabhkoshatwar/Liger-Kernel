@@ -339,13 +339,20 @@ def revert_liger_kernel_to_phi3(model_config: MiniModelConfig):
     model_config.model_class = modeling_phi3.Phi3ForCausalLM
     print("Liger kernel patches have been reverted.")
 
-def revert_remote_model(model_config: RemoteMiniModelConfig, remote_model_module: str):
+def revert_liger_kernel_to_deepseek_v2(model_config: RemoteMiniModelConfig, remote_model_module: str):
     """
-    Revert all Liger kernel patches applied to remote model.
+    Revert all Liger kernel patches applied to deepseek v2 model.
     """
     import sys
-    importlib.reload(sys.modules[remote_model_module])
-    print("Liger kernel patches have been reverted.")
+    if remote_model_module:
+        parent_mod_path = remote_model_module.rpartition('.')[0]
+
+        if parent_mod_path not in sys.modules:
+            __import__(parent_mod_path)
+
+        importlib.reload(sys.modules[remote_model_module])
+        
+        print("Liger kernel patches have been reverted.")
 
 
 class HFAlignmentLoss:
